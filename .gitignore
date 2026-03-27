@@ -1,0 +1,3 @@
+echo "env_dashboard/" >> .gitignore
+echo "__pycache__/" >> .gitignoreenv_dashboard/
+__pycache__/
