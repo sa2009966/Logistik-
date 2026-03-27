@@ -36,6 +36,7 @@ ESTADOS = ["Completado", "Pendiente", "Cancelado"]
 
 # Lista de metodos de pago para operaciones financieras.
 METODOS_PAGO = ["Transferencia", "Efectivo", "Tarjeta", "Credito", "Deposito"]
+CSV_REQUIRED_COLUMNS = ["monto_total", "estado", "tipo_servicio"]  # Columnas minimas para analitica.
 
 
 def get_server_connection():
@@ -207,6 +208,25 @@ def compute_kpis(df_data):
     return total_ingresos, servicios_realizados, monto_promedio
 
 
+def validate_csv_columns(df_csv):
+    # Valida que el CSV tenga las columnas requeridas para graficas y KPIs.
+    missing = [col for col in CSV_REQUIRED_COLUMNS if col not in df_csv.columns]
+    return missing
+
+
+def prepare_csv_dataframe(df_csv):
+    # Normaliza el dataframe del CSV para alinearlo con el esquema esperado por el dashboard.
+    df_csv = df_csv.copy()
+    if "fecha" not in df_csv.columns:
+        # Si no existe fecha en el CSV, asigna fecha actual para habilitar grafico de linea.
+        df_csv["fecha"] = pd.Timestamp.today().date()
+    df_csv["fecha"] = pd.to_datetime(df_csv["fecha"], errors="coerce").fillna(pd.Timestamp.today())
+    df_csv["monto_total"] = pd.to_numeric(df_csv["monto_total"], errors="coerce").fillna(0.0)
+    df_csv["estado"] = df_csv["estado"].astype(str)
+    df_csv["tipo_servicio"] = df_csv["tipo_servicio"].astype(str)
+    return df_csv
+
+
 # Control de modo de operacion (MySQL real o demo offline).
 USE_DEMO_MODE = False
 try:
@@ -220,6 +240,14 @@ except Error as init_error:
 # Encabezado principal del dashboard BI.
 st.title("Dashboard BI Interactivo - Logistik S.A. de C.V.")
 st.caption("Panel en tiempo real para registrar transacciones logistic-as y analizar indicadores financieros.")
+
+# Sidebar para importar fuente externa de datos en formato CSV.
+st.sidebar.header("Carga de Datos")
+uploaded_csv = st.sidebar.file_uploader(
+    "Importar CSV para analisis externo",
+    type=["csv"],
+    help="Si cargas un CSV valido, se priorizara sobre MySQL/demo para el dashboard.",
+)
 
 # Crea tabs para captura de datos y visualizacion.
 tab_ingreso, tab_dashboard = st.tabs(["Ingresar Nueva Transaccion", "Dashboard BI"])
@@ -297,22 +325,95 @@ with tab_ingreso:
 with tab_dashboard:
     # Encabezado de analitica principal.
     st.subheader("Visualizacion Dinamica de Operaciones")
-    if USE_DEMO_MODE:
+    data_source_label = ""  # Etiqueta para indicar la fuente activa de datos.
+
+    # Prioriza CSV si el usuario lo carga en la barra lateral.
+    if uploaded_csv is not None:
+        try:
+            # Lee el archivo CSV subido por el usuario.
+            df_csv = pd.read_csv(uploaded_csv)
+            # Valida columnas requeridas para analisis.
+            missing_columns = validate_csv_columns(df_csv)
+            if missing_columns:
+                # Informa columnas faltantes con mensaje claro y accionable.
+                st.error(
+                    "El archivo CSV no tiene la estructura necesaria. "
+                    f"Faltan estas columnas: {', '.join(missing_columns)}. "
+                    "Columnas minimas requeridas: monto_total, estado, tipo_servicio."
+                )
+                st.stop()
+            # Prepara datos para uso consistente en graficas y KPI.
+            df_data = prepare_csv_dataframe(df_csv)
+            data_source_label = "CSV EXTERNO"
+            st.success("CSV cargado correctamente. El dashboard usa esta fuente de datos.")
+        except Exception as csv_error:
+            st.error(f"No se pudo procesar el CSV cargado: {csv_error}")
+            st.stop()
+    elif USE_DEMO_MODE:
         # Carga datos de sesion para modo sin servidor.
         df_data = load_transactions_demo_df()
+        data_source_label = "DEMO OFFLINE"
     else:
         try:
             # Carga datos reales desde MySQL.
             df_data = load_transactions_df()
+            data_source_label = "MYSQL ONLINE"
         except Error as read_error:
             st.error(f"Error al leer transacciones de MySQL: {read_error}")
             st.stop()
 
     # Muestra modo de operacion activo.
-    st.caption(f"Modo actual: {'DEMO OFFLINE' if USE_DEMO_MODE else 'MYSQL ONLINE'}")
+    st.caption(f"Fuente activa de datos: {data_source_label}")
 
-    # Calcula KPIs sobre la nueva estructura financiera.
-    total_ingresos, servicios_realizados, monto_promedio = compute_kpis(df_data)
+    # Normaliza la fecha para filtros y analitica temporal.
+    df_data["fecha"] = pd.to_datetime(df_data["fecha"], errors="coerce")
+
+    # Panel de filtros interactivos para analizar subconjuntos del dataset.
+    st.markdown("### Filtros de Analisis")
+    f1, f2, f3 = st.columns(3)
+
+    # Filtro por estado (multiseleccion) con todas las opciones marcadas por defecto.
+    estados_disponibles = sorted(df_data["estado"].dropna().astype(str).unique().tolist())
+    estados_sel = f1.multiselect("Filtrar por Estado", estados_disponibles, default=estados_disponibles)
+
+    # Filtro por tipo de servicio (multiseleccion) con todas las opciones marcadas por defecto.
+    servicios_disponibles = sorted(df_data["tipo_servicio"].dropna().astype(str).unique().tolist())
+    servicios_sel = f2.multiselect(
+        "Filtrar por Tipo de Servicio",
+        servicios_disponibles,
+        default=servicios_disponibles,
+    )
+
+    # Filtro por rango de fecha usando los limites reales del dataset.
+    fechas_validas = df_data["fecha"].dropna()
+    if fechas_validas.empty:
+        fecha_min = date.today()
+        fecha_max = date.today()
+    else:
+        fecha_min = fechas_validas.min().date()
+        fecha_max = fechas_validas.max().date()
+    fecha_rango = f3.date_input(
+        "Rango de Fechas",
+        value=(fecha_min, fecha_max),
+        min_value=fecha_min,
+        max_value=fecha_max,
+    )
+
+    # Aplica filtros seleccionados para construir el dataframe activo del dashboard.
+    if isinstance(fecha_rango, tuple) and len(fecha_rango) == 2:
+        fecha_inicio, fecha_fin = fecha_rango
+    else:
+        fecha_inicio, fecha_fin = fecha_min, fecha_max
+
+    df_filtered = df_data.copy()
+    df_filtered = df_filtered[df_filtered["estado"].astype(str).isin(estados_sel)]
+    df_filtered = df_filtered[df_filtered["tipo_servicio"].astype(str).isin(servicios_sel)]
+    df_filtered = df_filtered[
+        (df_filtered["fecha"].dt.date >= fecha_inicio) & (df_filtered["fecha"].dt.date <= fecha_fin)
+    ]
+
+    # Calcula KPIs sobre el dataset filtrado para analisis contextual.
+    total_ingresos, servicios_realizados, monto_promedio = compute_kpis(df_filtered)
 
     # Muestra KPI principal con texto anotado.
     annotated_text(
@@ -326,22 +427,27 @@ with tab_dashboard:
     k2.metric("Servicios Realizados", f"{servicios_realizados}")
     k3.metric("Monto Promedio", f"${monto_promedio:,.2f}")
 
-    # Evita graficacion si la tabla esta vacia.
-    if df_data.empty:
-        st.info("No hay transacciones registradas todavia.")
-    else:
-        # Normaliza columnas de fecha para agregaciones temporales.
-        df_data["fecha"] = pd.to_datetime(df_data["fecha"])
+    # Muestra resumen estadistico automatico de ingresos logisticos.
+    st.markdown("### Insights Estadisticos")
+    insights_stats = df_filtered[["monto_total"]].describe().T
+    insights_view = insights_stats[["mean", "min", "max"]].rename(
+        columns={"mean": "Promedio", "min": "Minimo", "max": "Maximo"}
+    )
+    st.dataframe(insights_view, use_container_width=True)
 
+    # Evita graficacion si la tabla esta vacia.
+    if df_filtered.empty:
+        st.info("No hay datos para los filtros seleccionados.")
+    else:
         # Agrupa por fecha y suma monto_total, aplicando reset_index() para evitar Length mismatch.
-        df_line = df_data.groupby(df_data["fecha"].dt.date)["monto_total"].sum().reset_index()
+        df_line = df_filtered.groupby(df_filtered["fecha"].dt.date)["monto_total"].sum().reset_index()
         df_line.columns = ["fecha", "monto_total"]
 
         # Agrupa por tipo_servicio y suma monto_total, aplicando reset_index() obligatorio.
-        df_servicio = df_data.groupby("tipo_servicio")["monto_total"].sum().reset_index()
+        df_servicio = df_filtered.groupby("tipo_servicio")["monto_total"].sum().reset_index()
 
         # Agrupa por estado y suma monto_total, aplicando reset_index() obligatorio.
-        df_estado = df_data.groupby("estado")["monto_total"].sum().reset_index()
+        df_estado = df_filtered.groupby("estado")["monto_total"].sum().reset_index()
 
         # Distribuye 3 graficos en columnas.
         c1, c2, c3 = st.columns(3)
@@ -379,4 +485,14 @@ with tab_dashboard:
         c3.plotly_chart(fig_pie, use_container_width=True)
 
     # Muestra tabla consolidada para auditoria y detalle operativo.
-    st.dataframe(df_data, use_container_width=True)
+    st.dataframe(df_filtered, use_container_width=True)
+
+    # Seccion final para exportar datos en CSV UTF-8.
+    st.markdown("### Centro de Reportes")
+    csv_bytes = df_filtered.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Descargar reporte CSV",
+        data=csv_bytes,
+        file_name="reporte_logistik.csv",
+        mime="text/csv",
+    )
