@@ -1,3 +1,10 @@
+
+.env
+.env.local
+.env.*.local
+# Permitir subir la plantilla sin datos sensibles:
+
+
 # --- Entornos virtuales (no subir dependencias instaladas) ---
 env_dashboard/
 .venv/
@@ -40,11 +47,6 @@ htmlcov/
 
 # --- Streamlit (secretos locales; la app usa .env en su lugar) ---
 .streamlit/secrets.toml
-
-# --- Variables de entorno con credenciales ---
-.env
-.env.local
-.env.*.local
 
 # --- Editores y sistema ---
 .idea/
