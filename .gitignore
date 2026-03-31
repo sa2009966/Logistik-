@@ -1,3 +1,58 @@
+# --- Entornos virtuales (no subir dependencias instaladas) ---
 env_dashboard/
-__pycache__/
-*.pyc
+.venv/
+venv/
+ENV/
+env/
+
+# --- Caché de Python (bytecode .pyc) ---
+# Python crea una carpeta __pycache__ en CADA paquete/carpeta con .py importado;
+# no es "un solo" caché global: es normal ver muchas. No deben ir al repo.
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# --- Distribución / empaquetado ---
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Herramientas de test y tipos ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Streamlit (secretos locales; la app usa .env en su lugar) ---
+.streamlit/secrets.toml
+
+# --- Variables de entorno con credenciales ---
+.env
+.env.local
+.env.*.local
+
+# --- Editores y sistema ---
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
