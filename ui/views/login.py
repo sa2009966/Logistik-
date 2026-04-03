@@ -43,7 +43,7 @@ def mostrar_inicio_sesion() -> None:
 
     if config.ALLOW_SELF_REGISTRATION:
         with st.expander("Crear cuenta (registro)", expanded=False):
-            st.caption("Formulario con estilo cristal definido en `ui/styles.py`.")
+            
             with st.form("register_form"):
                 nuevo_usuario = st.text_input("Nuevo usuario")
                 clave = st.text_input("Contraseña", type="password", key="np")

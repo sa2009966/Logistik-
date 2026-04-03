@@ -1,140 +1,80 @@
-# Dashboard BI Logistik S.A. de C.V.
+# 🚀 Logistik BI Dashboard
 
-Aplicacion web en Streamlit para registro y analisis de transacciones logisticas con visualizacion BI en tiempo real.
+### Gestión de Datos Logísticos & Business Intelligence
 
-## Caracteristicas principales
+Sistema profesional de análisis logístico diseñado para transformar registros crudos en indicadores de negocio (KPIs) accionables. Construido sobre un stack moderno de Python, priorizando la **seguridad**, la **escalabilidad** y una experiencia de usuario **Cyber-Dark**.
 
-- Registro de transacciones en tiempo real con formulario operativo.
-- Conexion a MySQL como fuente primaria de datos.
-- Modo demo offline automatico cuando MySQL no esta disponible.
-- Importacion de datos externos por CSV desde la barra lateral.
-- Priorizacion automatica del CSV sobre MySQL/demo para analisis.
-- KPIs financieros dinamicos:
-  - Total Ingresos
-  - Servicios Realizados
-  - Monto Promedio
-- Graficos interactivos con Plotly en tema oscuro:
-  - Line (tendencia de ingresos por fecha)
-  - Bar (ingresos por tipo de servicio)
-  - Pie (participacion por estado)
-- Insights estadisticos automaticos con `describe()` (promedio, minimo, maximo).
-- Filtros interactivos por estado, tipo de servicio y rango de fechas.
-- Centro de reportes para descargar el DataFrame actual filtrado en CSV UTF-8.
+---
 
-## Estructura de datos (MySQL)
+## 🎯 El Proyecto
+Este dashboard no es solo una interfaz; es un ecosistema completo que permite:
+* **Autenticación Blindada:** Gestión de sesiones y seguridad de contraseñas con **bcrypt**.
+* **Dualidad de Datos:** Conexión nativa a **MySQL** con un "Fallback" automático a **Modo Demo** (en memoria) si el servidor no está disponible.
+* **Analítica en Tiempo Real:** Visualización de ingresos, estados de servicio y ticket promedio mediante gráficos interactivos de **Plotly**.
+* **Flexibilidad:** Soporte para carga dinámica de archivos **CSV** que sobreescriben la vista actual para auditorías rápidas.
 
-La app crea automaticamente la base y tabla si existen permisos:
+---
 
-- Base de datos: `db_bi_alex`
-- Tabla: `transacciones_logistik`
+## 🏗️ Arquitectura de Capas (Clean Code)
+Para este proyecto, implementé una estructura organizada que separa las responsabilidades, facilitando el mantenimiento y el crecimiento del código:
 
-Campos:
+* 📂 `core/`: Cerebro del sistema (Configuración global, constantes y lógica de `auth/security`).
+* 📂 `database/`: Capa de persistencia (Patrón Singleton para conexión y Repositorios SQL).
+* 📂 `services/`: Lógica de negocio (Procesamiento de analíticas y generación de datasets).
+* 📂 `ui/`: Capa visual (Vistas de Landing, Login y Dashboard con estilos CSS inyectados).
 
-- `id_transaccion` (PK, autoincrement)
-- `fecha` (DATE)
-- `cliente` (VARCHAR 100)
-- `tipo_servicio` (VARCHAR 100)
-- `descripcion` (VARCHAR 255)
-- `origen` (VARCHAR 100)
-- `destino` (VARCHAR 100)
-- `monto_total` (DECIMAL 10,2)
-- `estado` (VARCHAR 50)
-- `metodo_pago` (VARCHAR 50)
-- `usuario_registro` (VARCHAR 50)
-- `fecha_registro` (TIMESTAMP)
+---
 
-## Requisitos
+## 🛠️ Stack Tecnológico
+* **Lenguaje:** Python 3.12+
+* **Framework UI:** [Streamlit](https://streamlit.io/)
+* **Base de Datos:** MySQL / MariaDB
+* **Seguridad:** Bcrypt (Hashing)
+* **Gráficos:** Plotly (Dark Theme)
 
-- Python 3.10+ (recomendado)
-- Streamlit
-- Pandas
-- Plotly
-- mysql-connector-python
-- st-annotated-text
-- Servidor MySQL (opcional, la app puede correr en modo demo)
+---
 
-## Instalacion rapida
+## 🚀 Instalación y Uso
 
-Desde la raiz del proyecto:
+1.  **Clonar el repositorio:**
+    ```bash
+    git clone [https://github.com/sa2009966/Logistik-.git](https://github.com/sa2009966/Logistik-.git)
+    cd Logistik-
+    ```
 
-```bash
-python3 -m venv env_dashboard
-source env_dashboard/bin/activate
-pip install streamlit pandas plotly mysql-connector-python st-annotated-text
-```
+2.  **Preparar el entorno:**
+    ```bash
+    python3 -m venv env_dashboard
+    source env_dashboard/bin/activate
+    pip install -r requirements.txt
+    ```
 
-## Configuracion de MySQL
+3.  **Configuración de Variables (`.env`):**
+    Crea un archivo `.env` en la raíz (ignorado por Git) con tus credenciales:
+    ```env
+    DB_HOST=localhost
+    DB_USER=root
+    DB_PASSWORD=tu_password
+    DB_NAME=db_bi_alex
+    ALLOW_SELF_REGISTRATION=true
+    ```
 
-En `app.py` se usan estos parametros:
+4.  **Correr la aplicación:**
+    ```bash
+    streamlit run app.py
+    ```
 
-- `DB_HOST = "localhost"`
-- `DB_PORT = 3306`
-- `DB_USER = "root"`
-- `DB_PASSWORD = "1234"`
-- `DB_NAME = "db_bi_alex"`
+---
 
-Ajusta estos valores segun tu entorno local.
+## 🛡️ Seguridad y Buenas Prácticas
+* **Zero Plain Text:** No se almacenan contraseñas en texto plano; todo pasa por un proceso de hashing robusto.
+* **Protección de Rutas:** El Dashboard está bloqueado por un middleware de autenticación; sin sesión no hay acceso a la data.
+* **Entornos Seguros:** Uso estricto de variables de entorno para proteger las llaves de la base de datos.
 
-## Ejecutar la aplicacion
+---
 
-```bash
-cd "/home/alex/Descargas/proyecto con python de gestion"
-source env_dashboard/bin/activate
-streamlit run app.py
-```
+## 📊 Vistas del Sistema
+1.  **Landing Page:** Presentación animada con CSS personalizado.
+2.  **Módulo de Login:** Acceso seguro y registro de nuevos usuarios (opcional).
+3.  **Dashboard BI:** Panel principal con filtros dinámicos, KPIs de ingresos y herramientas de exportación CSV.
 
-## Sobre el servicio MySQL en Linux
-
-Si tienes MySQL instalado:
-
-```bash
-sudo systemctl start mysql
-sudo systemctl status mysql
-```
-
-Si no existe `mysql.service`, probablemente solo tienes cliente instalado. Instala servidor:
-
-```bash
-sudo apt update
-sudo apt install mysql-server
-```
-
-Si tu distro usa MariaDB:
-
-```bash
-sudo systemctl start mariadb
-sudo systemctl status mariadb
-```
-
-## Importar CSV (analisis externo)
-
-1. Abre la app en el navegador.
-2. En el sidebar, usa `Importar CSV para analisis externo`.
-3. El CSV debe incluir al menos estas columnas:
-   - `monto_total`
-   - `estado`
-   - `tipo_servicio`
-4. Si el CSV es valido, la app lo usara como fuente activa para KPIs, graficas, insights, filtros y descarga.
-
-## Filtros y reportes
-
-En la pestana `Dashboard BI`:
-
-- Filtra por estado.
-- Filtra por tipo de servicio.
-- Selecciona rango de fechas.
-
-En `Centro de Reportes`:
-
-- Descarga el dataset actual (filtrado) en CSV UTF-8 con `Descargar reporte CSV`.
-
-## Modo demo offline
-
-Si no hay conexion a MySQL, la app activa automaticamente modo demo con 10 registros iniciales (Empresa A a Empresa J), manteniendo:
-
-- registro en tiempo real,
-- recarga con `st.rerun()`,
-- KPIs,
-- graficas,
-- filtros,
-- exportacion CSV.
