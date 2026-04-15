@@ -7,31 +7,24 @@ import streamlit as st
 from annotated_text import annotated_text
 from mysql.connector import Error
 
-from core import auth
-from core.auth import obtener_usuario_actual
-from core.constants import ESTADOS, METODOS_PAGO, TIPOS_SERVICIO
-from database import repository
-from services import analytics, demo_data
-from ui.charts import (
-    grafico_barras_ingresos_servicio,
-    grafico_linea_tendencia_ingresos,
-    grafico_pastel_participacion_estado,
-)
+from core.constants import ConstantesNegocio
+from services.container import obtener_contenedor
 from ui.styles import CYBER_CYAN
 
 
 def mostrar_panel_principal() -> None:
     """Orquesta sidebar, pestañas de ingreso y dashboard (solo usuarios autenticados)."""
+    contenedor = obtener_contenedor()
     usar_demo = st.session_state.get("use_demo_mode", False)
 
     with st.sidebar:
-        st.markdown(f"**Usuario:** `{obtener_usuario_actual()}`")
+        st.markdown(f"**Usuario:** `{contenedor.sesion.obtener_usuario_actual()}`")
         if usar_demo:
             st.warning("Modo demo (datos en memoria).")
         else:
             st.success("MySQL conectado.")
         if st.button("Cerrar sesión", use_container_width=True):
-            auth.cerrar_sesion()
+            contenedor.sesion.cerrar_sesion()
             st.rerun()
 
         st.header("Carga de datos")
@@ -53,26 +46,26 @@ def mostrar_panel_principal() -> None:
     pestaña_ingreso, pestaña_dashboard = st.tabs(["Nueva transacción", "Dashboard BI"])
 
     with pestaña_ingreso:
-        _mostrar_formulario_transaccion(usar_demo)
+        _mostrar_formulario_transaccion(contenedor, usar_demo)
 
     with pestaña_dashboard:
-        _mostrar_panel_bi(usar_demo)
+        _mostrar_panel_bi(contenedor, usar_demo)
 
 
-def _mostrar_formulario_transaccion(usar_demo: bool) -> None:
-    """Alta de transacción en MySQL o en memoria según el modo activo."""
+def _mostrar_formulario_transaccion(contenedor, usar_demo: bool) -> None:
+    """Alta de transacción vía capa de servicios (MySQL o demo)."""
     st.subheader("Formulario de registro operativo")
-    usuario_por_defecto = obtener_usuario_actual() or "admin"
+    usuario_por_defecto = contenedor.sesion.obtener_usuario_actual() or "admin"
     with st.form("form_transaccion_logistik", clear_on_submit=True):
         fecha = st.date_input("Fecha", value=date.today())
         cliente = st.text_input("Cliente")
-        tipo_servicio = st.selectbox("Tipo de Servicio", TIPOS_SERVICIO)
+        tipo_servicio = st.selectbox("Tipo de Servicio", ConstantesNegocio.TIPOS_SERVICIO)
         descripcion = st.text_input("Descripción")
         origen = st.text_input("Origen")
         destino = st.text_input("Destino")
         monto_total = st.number_input("Monto total", min_value=0.0, step=0.01, format="%.2f")
-        estado = st.selectbox("Estado", ESTADOS)
-        metodo_pago = st.selectbox("Método de pago", METODOS_PAGO)
+        estado = st.selectbox("Estado", ConstantesNegocio.ESTADOS)
+        metodo_pago = st.selectbox("Método de pago", ConstantesNegocio.METODOS_PAGO)
         usuario_registro = st.text_input("Usuario registro", value=usuario_por_defecto)
         enviar = st.form_submit_button("Registrar transacción")
 
@@ -88,8 +81,9 @@ def _mostrar_formulario_transaccion(usar_demo: bool) -> None:
         elif monto_total <= 0:
             st.error("El monto total debe ser mayor que cero.")
         else:
-            if usar_demo:
-                demo_data.insertar_transaccion_demostracion(
+            try:
+                contenedor.logistica.registrar_transaccion(
+                    usar_demo,
                     fecha,
                     cliente.strip(),
                     tipo_servicio,
@@ -101,61 +95,31 @@ def _mostrar_formulario_transaccion(usar_demo: bool) -> None:
                     metodo_pago,
                     usuario_registro.strip(),
                 )
-                st.success("Transacción registrada (modo demo).")
+                st.success(
+                    "Transacción registrada (modo demo)."
+                    if usar_demo
+                    else "Transacción registrada en MySQL."
+                )
                 st.rerun()
-            else:
-                try:
-                    repository.insertar_transaccion(
-                        fecha,
-                        cliente.strip(),
-                        tipo_servicio,
-                        descripcion.strip(),
-                        origen.strip(),
-                        destino.strip(),
-                        monto_total,
-                        estado,
-                        metodo_pago,
-                        usuario_registro.strip(),
-                    )
-                    st.success("Transacción registrada en MySQL.")
-                    st.rerun()
-                except Error as err_insert:
-                    st.error(f"Error al registrar en base de datos: {err_insert}")
+            except Error as err_insert:
+                st.error(f"Error al registrar en base de datos: {err_insert}")
 
 
-def _mostrar_panel_bi(usar_demo: bool) -> None:
-    """Carga fuente de datos, aplica filtros, KPIs, gráficos y descarga CSV."""
+def _mostrar_panel_bi(contenedor, usar_demo: bool) -> None:
+    """Resuelve fuente de datos y visualización vía DashboardService."""
     st.subheader("Visualización dinámica de operaciones")
     archivo_csv = st.session_state.get("_sidebar_csv")
 
-    etiqueta_fuente = ""
-    if archivo_csv is not None:
-        try:
-            df_csv = pd.read_csv(archivo_csv)
-            columnas_faltantes = analytics.validar_columnas_csv(df_csv)
-            if columnas_faltantes:
-                st.error(
-                    "El archivo CSV no tiene la estructura necesaria. "
-                    f"Faltan: {', '.join(columnas_faltantes)}. "
-                    "Columnas mínimas: monto_total, estado, tipo_servicio."
-                )
-                st.stop()
-            df_datos = analytics.preparar_dataframe_csv(df_csv)
-            etiqueta_fuente = "CSV EXTERNO"
-            st.success("CSV cargado. El dashboard usa esta fuente.")
-        except Exception as err_csv:
-            st.error(f"No se pudo procesar el CSV: {err_csv}")
-            st.stop()
-    elif usar_demo:
-        df_datos = demo_data.cargar_transacciones_demostracion_dataframe()
-        etiqueta_fuente = "DEMO OFFLINE"
-    else:
-        try:
-            df_datos = repository.cargar_transacciones_dataframe()
-            etiqueta_fuente = "MYSQL ONLINE"
-        except Error as err_lectura:
-            st.error(f"Error al leer transacciones de MySQL: {err_lectura}")
-            st.stop()
+    df_datos, etiqueta_fuente, error_carga = contenedor.dashboard.construir_dataset_visualizacion(
+        usar_demo, archivo_csv
+    )
+    if error_carga:
+        st.error(error_carga)
+        st.stop()
+    if archivo_csv is not None and df_datos is not None:
+        st.success("CSV cargado. El dashboard usa esta fuente.")
+
+    assert df_datos is not None
 
     st.caption(f"Fuente activa de datos: **{etiqueta_fuente}**")
 
@@ -202,7 +166,7 @@ def _mostrar_panel_bi(usar_demo: bool) -> None:
         & (df_filtrado["fecha"].dt.date <= fecha_fin)
     ]
 
-    total_ingresos, servicios_realizados, monto_promedio = analytics.calcular_indicadores(
+    total_ingresos, servicios_realizados, monto_promedio = contenedor.dashboard.calcular_indicadores(
         df_filtrado
     )
 
@@ -235,13 +199,16 @@ def _mostrar_panel_bi(usar_demo: bool) -> None:
 
         c1, c2, c3 = st.columns(3)
         c1.plotly_chart(
-            grafico_linea_tendencia_ingresos(df_linea), use_container_width=True
+            contenedor.graficos.render("linea_tendencia_ingresos", df_linea),
+            use_container_width=True,
         )
         c2.plotly_chart(
-            grafico_barras_ingresos_servicio(df_servicio), use_container_width=True
+            contenedor.graficos.render("barras_ingresos_servicio", df_servicio),
+            use_container_width=True,
         )
         c3.plotly_chart(
-            grafico_pastel_participacion_estado(df_estado), use_container_width=True
+            contenedor.graficos.render("pastel_participacion_estado", df_estado),
+            use_container_width=True,
         )
 
     st.dataframe(df_filtrado, use_container_width=True)

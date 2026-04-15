@@ -2,12 +2,13 @@
 
 import streamlit as st
 
-from core import auth, config
+from services.container import obtener_contenedor
 from ui.styles import CYBER_CYAN
 
 
 def mostrar_inicio_sesion() -> None:
     """Pantalla de credenciales; en modo demo muestra usuario/contraseña de prueba."""
+    contenedor = obtener_contenedor()
     st.markdown(
         f"""
         <div style="text-align:center; margin-bottom:1.5rem;" class="fade-in-up">
@@ -28,7 +29,7 @@ def mostrar_inicio_sesion() -> None:
         enviado = st.form_submit_button("Ingresar", type="primary", use_container_width=True)
 
     if enviado:
-        exito, mensaje = auth.iniciar_sesion(usuario, contrasena, modo_demostracion=modo_demo)
+        exito, mensaje = contenedor.auth.iniciar_sesion(usuario, contrasena, modo_demostracion=modo_demo)
         if exito:
             st.success("Sesión iniciada.")
             st.rerun()
@@ -38,19 +39,19 @@ def mostrar_inicio_sesion() -> None:
     col_volver, _ = st.columns(2)
     with col_volver:
         if st.button("← Volver al inicio", use_container_width=True):
-            st.session_state[auth.SESSION_NAV] = auth.NAV_LANDING
+            contenedor.sesion.establecer_navegacion(contenedor.sesion.NAV_LANDING)
             st.rerun()
 
-    if config.ALLOW_SELF_REGISTRATION:
+    if contenedor.configuracion.allow_self_registration:
         with st.expander("Crear cuenta (registro)", expanded=False):
-            
+
             with st.form("register_form"):
                 nuevo_usuario = st.text_input("Nuevo usuario")
                 clave = st.text_input("Contraseña", type="password", key="np")
                 clave_confirm = st.text_input("Confirmar contraseña", type="password", key="nc")
                 registrar = st.form_submit_button("Registrar", use_container_width=True)
             if registrar:
-                ok, msg = auth.registrar_usuario(
+                ok, msg = contenedor.auth.registrar_usuario(
                     nuevo_usuario, clave, clave_confirm, modo_demostracion=modo_demo
                 )
                 if ok:

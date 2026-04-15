@@ -1,80 +1,93 @@
-# 🚀 Logistik BI Dashboard
+# Logistik BI Dashboard
 
-### Gestión de Datos Logísticos & Business Intelligence
+### Gestión de datos logísticos y Business Intelligence
 
-Sistema profesional de análisis logístico diseñado para transformar registros crudos en indicadores de negocio (KPIs) accionables. Construido sobre un stack moderno de Python, priorizando la **seguridad**, la **escalabilidad** y una experiencia de usuario **Cyber-Dark**.
-
----
-
-## 🎯 El Proyecto
-Este dashboard no es solo una interfaz; es un ecosistema completo que permite:
-* **Autenticación Blindada:** Gestión de sesiones y seguridad de contraseñas con **bcrypt**.
-* **Dualidad de Datos:** Conexión nativa a **MySQL** con un "Fallback" automático a **Modo Demo** (en memoria) si el servidor no está disponible.
-* **Analítica en Tiempo Real:** Visualización de ingresos, estados de servicio y ticket promedio mediante gráficos interactivos de **Plotly**.
-* **Flexibilidad:** Soporte para carga dinámica de archivos **CSV** que sobreescriben la vista actual para auditorías rápidas.
+Sistema de análisis logístico que convierte registros operativos en KPIs accionables. Stack en Python con **Streamlit**, **MySQL** (con fallback a **modo demo** en memoria), **Plotly** (tema oscuro) y **bcrypt** para contraseñas.
 
 ---
 
-## 🏗️ Arquitectura de Capas (Clean Code)
-Para este proyecto, implementé una estructura organizada que separa las responsabilidades, facilitando el mantenimiento y el crecimiento del código:
+## El proyecto
 
-* 📂 `core/`: Cerebro del sistema (Configuración global, constantes y lógica de `auth/security`).
-* 📂 `database/`: Capa de persistencia (Patrón Singleton para conexión y Repositorios SQL).
-* 📂 `services/`: Lógica de negocio (Procesamiento de analíticas y generación de datasets).
-* 📂 `ui/`: Capa visual (Vistas de Landing, Login y Dashboard con estilos CSS inyectados).
-
----
-
-## 🛠️ Stack Tecnológico
-* **Lenguaje:** Python 3.12+
-* **Framework UI:** [Streamlit](https://streamlit.io/)
-* **Base de Datos:** MySQL / MariaDB
-* **Seguridad:** Bcrypt (Hashing)
-* **Gráficos:** Plotly (Dark Theme)
+- **Autenticación:** Sesión en Streamlit y contraseñas con **bcrypt** (`SecurityHandler` en `core/`).
+- **Datos:** Conexión a **MySQL**; si falla el arranque, **modo demo** con datos en `session_state`.
+- **BI:** KPIs, filtros y gráficos Plotly; opción de **CSV externo** para el tablero.
+- **Arquitectura:** Capas **core → database → services → ui**, con **POO**, **inyección de dependencias** y contratos **SOLID** en `services/`.
 
 ---
 
-## 🚀 Instalación y Uso
+## Arquitectura de capas
 
-1.  **Clonar el repositorio:**
-    ```bash
-    git clone [https://github.com/sa2009966/Logistik-.git](https://github.com/sa2009966/Logistik-.git)
-    cd Logistik-
-    ```
 
-2.  **Preparar el entorno:**
-    ```bash
-    python3 -m venv env_dashboard
-    source env_dashboard/bin/activate
-    pip install -r requirements.txt
-    ```
+| Carpeta     | Responsabilidad                                                                                                                                                               |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/`     | Configuración (`ConfiguracionAplicacion`), constantes (`ConstantesNegocio`), sesión Streamlit (`AuthSessionController`), seguridad (`SecurityHandler`).                       |
+| `database/` | Infraestructura: `GestorConexionMySQL` y `LogistikRepository` (implementa los puertos definidos en `services/contracts.py`).                                                  |
+| `services/` | Casos de uso: `AuthService`, `LogisticaService`, `DashboardService`, `AnalyticsService` (KPIs), `CsvDataLoaderService` (CSV), `DemoDataStore`, composición en `container.py`. |
+| `ui/`       | Vistas Streamlit, tema (`TemaInterfaz`) y gráficos extensibles (`BaseGraficoPlotly` + `RenderizadorGraficosBi`).                                                              |
 
-3.  **Configuración de Variables (`.env`):**
-    Crea un archivo `.env` en la raíz (ignorado por Git) con tus credenciales:
-    ```env
-    DB_HOST=localhost
-    DB_USER=root
-    DB_PASSWORD=tu_password
-    DB_NAME=db_bi_alex
-    ALLOW_SELF_REGISTRATION=true
-    ```
 
-4.  **Correr la aplicación:**
-    ```bash
-    streamlit run app.py
-    ```
+**Flujo de dependencias:** la UI consume el **contenedor** (`fabricar_contenedor`) y llama a **servicios**; los servicios dependen de **interfaces** (`IAuthRepository`, `IBootstrapRepository`, `ITransaccionesDataSource`), no de clases concretas de `database/`.
+
+**Principios SOLID (resumen):**
+
+- **S:** CSV (`CsvDataLoaderService`) separado de KPIs (`AnalyticsService`).
+- **O:** Nuevos gráficos: subclase de `BaseGraficoPlotly` y registro en `RenderizadorGraficosBi`.
+- **L:** Fuentes de transacciones intercambiables vía `ITransaccionesDataSource` (MySQL / demo).
+- **I:** Puertos segregados en `services/contracts.py`.
+- **D:** Servicios inyectan abstracciones; la implementación MySQL vive en `database/`.
 
 ---
 
-## 🛡️ Seguridad y Buenas Prácticas
-* **Zero Plain Text:** No se almacenan contraseñas en texto plano; todo pasa por un proceso de hashing robusto.
-* **Protección de Rutas:** El Dashboard está bloqueado por un middleware de autenticación; sin sesión no hay acceso a la data.
-* **Entornos Seguros:** Uso estricto de variables de entorno para proteger las llaves de la base de datos.
+## Stack tecnológico
+
+- **Lenguaje:** Python 3.12+
+- **UI:** [Streamlit](https://streamlit.io/)
+- **Base de datos:** MySQL / MariaDB
+- **Seguridad:** bcrypt
+- **Gráficos:** Plotly (tema oscuro)
 
 ---
 
-## 📊 Vistas del Sistema
-1.  **Landing Page:** Presentación animada con CSS personalizado.
-2.  **Módulo de Login:** Acceso seguro y registro de nuevos usuarios (opcional).
-3.  **Dashboard BI:** Panel principal con filtros dinámicos, KPIs de ingresos y herramientas de exportación CSV.
+## Instalación y uso
+
+1. **Clonar el repositorio** (ajusta la URL si usas un fork distinto):
+  ```bash
+   git clone https://github.com/sa2009966/Logistik-.git
+   cd Logistik-
+  ```
+2. **Entorno virtual y dependencias:**
+  ```bash
+   python3 -m venv env_dashboard
+   source env_dashboard/bin/activate
+   pip install -r requirements.txt
+  ```
+3. **Variables de entorno (`.env` en la raíz del proyecto, junto a `app.py`):**
+
+  | Variable                                                  | Descripción                                            |
+  | --------------------------------------------------------- | ------------------------------------------------------ |
+  | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Conexión MySQL                                         |
+  | `DEFAULT_ADMIN_USERNAME`, `DEFAULT_ADMIN_PASSWORD`        | Usuario admin inicial si no existe                     |
+  | `ALLOW_SELF_REGISTRATION`                                 | `true` / `false` — registro desde la pantalla de login |
+
+4. **Punto de entrada (sin cambios):** el arranque sigue siendo `**app.py`**.
+  ```bash
+   streamlit run app.py
+  ```
+   También puedes ejecutar `python app.py` si tu entorno invoca Streamlit correctamente; la forma recomendada es `streamlit run app.py`.
+
+---
+
+## Seguridad y buenas prácticas
+
+- Las contraseñas se almacenan hasheadas (no en texto plano).
+- El dashboard solo es accesible con sesión autenticada.
+- Credenciales y secretos deben ir en `.env` (no versionar secretos reales).
+
+---
+
+## Vistas del sistema
+
+1. **Landing:** Presentación y acceso al login.
+2. **Login:** Acceso y registro opcional (si `ALLOW_SELF_REGISTRATION` lo permite).
+3. **Dashboard BI:** Registro de transacciones, KPIs, filtros, CSV opcional y exportación.
 

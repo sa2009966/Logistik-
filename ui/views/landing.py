@@ -2,12 +2,14 @@
 
 import streamlit as st
 
-from core import auth
-from ui.styles import CYBER_CYAN, CYBER_GREEN, envolver_contenedor_landing
+from services.container import obtener_contenedor
+from ui.styles import CYBER_CYAN, CYBER_GREEN, TemaInterfaz
 
 
 def mostrar_pagina_inicio() -> None:
     """Renderiza la landing con animaciones CSS y botón hacia el formulario de acceso."""
+    contenedor = obtener_contenedor()
+    tema = TemaInterfaz()
     contenido_html = f"""
     <div class="fade-in-up" style="text-align:center; max-width:920px; margin:0 auto;">
       <p style="font-family:'JetBrains Mono',monospace; font-size:0.85rem; letter-spacing:0.35em;
@@ -34,10 +36,10 @@ def mostrar_pagina_inicio() -> None:
       </div>
     </div>
     """
-    st.markdown(envolver_contenedor_landing(contenido_html), unsafe_allow_html=True)
+    st.markdown(tema.envolver_contenedor_landing(contenido_html), unsafe_allow_html=True)
 
     _, columna, _ = st.columns([1, 1, 1])
     with columna:
         if st.button("Acceder al sistema", type="primary", use_container_width=True):
-            st.session_state[auth.SESSION_NAV] = auth.NAV_LOGIN
+            contenedor.sesion.establecer_navegacion(contenedor.sesion.NAV_LOGIN)
             st.rerun()
