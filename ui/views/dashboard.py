@@ -9,7 +9,7 @@ from mysql.connector import Error
 
 from core.constants import ConstantesNegocio
 from services.container import obtener_contenedor
-from ui.styles import CYBER_CYAN
+from ui.styles import COLOR_ACCENT, html_skeleton_block
 
 
 def mostrar_panel_principal() -> None:
@@ -36,7 +36,7 @@ def mostrar_panel_principal() -> None:
     st.session_state["_sidebar_csv"] = archivo_csv
 
     st.markdown(
-        f'<h1 style="color:{CYBER_CYAN};">Logistik BI · Dashboard</h1>',
+        f'<h1 style="color:{COLOR_ACCENT};">Logistik BI · Dashboard</h1>',
         unsafe_allow_html=True,
     )
     st.caption(
@@ -110,9 +110,17 @@ def _mostrar_panel_bi(contenedor, usar_demo: bool) -> None:
     st.subheader("Visualización dinámica de operaciones")
     archivo_csv = st.session_state.get("_sidebar_csv")
 
-    df_datos, etiqueta_fuente, error_carga = contenedor.dashboard.construir_dataset_visualizacion(
-        usar_demo, archivo_csv
+    placeholder = st.empty()
+    placeholder.markdown(
+        f'<div class="fade-in-up">{html_skeleton_block()}</div>',
+        unsafe_allow_html=True,
     )
+    with st.spinner("Cargando datos del panel…"):
+        df_datos, etiqueta_fuente, error_carga = contenedor.dashboard.construir_dataset_visualizacion(
+            usar_demo, archivo_csv
+        )
+    placeholder.empty()
+
     if error_carga:
         st.error(error_carga)
         st.stop()
@@ -125,33 +133,37 @@ def _mostrar_panel_bi(contenedor, usar_demo: bool) -> None:
 
     df_datos["fecha"] = pd.to_datetime(df_datos["fecha"], errors="coerce")
 
-    st.markdown("### Filtros de análisis")
-    f1, f2, f3 = st.columns(3)
-    estados_disponibles = sorted(df_datos["estado"].dropna().astype(str).unique().tolist())
-    estados_sel = f1.multiselect(
-        "Filtrar por estado", estados_disponibles, default=estados_disponibles
-    )
-    servicios_disponibles = sorted(
-        df_datos["tipo_servicio"].dropna().astype(str).unique().tolist()
-    )
-    servicios_sel = f2.multiselect(
-        "Filtrar por tipo de servicio",
-        servicios_disponibles,
-        default=servicios_disponibles,
-    )
-    fechas_validas = df_datos["fecha"].dropna()
-    if fechas_validas.empty:
-        fecha_min = date.today()
-        fecha_max = date.today()
-    else:
-        fecha_min = fechas_validas.min().date()
-        fecha_max = fechas_validas.max().date()
-    fecha_rango = f3.date_input(
-        "Rango de fechas",
-        value=(fecha_min, fecha_max),
-        min_value=fecha_min,
-        max_value=fecha_max,
-    )
+    with st.expander("Filtros de análisis", expanded=True):
+        st.caption(
+            "Puedes colapsar este bloque en pantallas pequeñas para ahorrar espacio. "
+            "En escritorio los tres filtros se muestran en columnas; en móvil se apilan."
+        )
+        f1, f2, f3 = st.columns(3)
+        estados_disponibles = sorted(df_datos["estado"].dropna().astype(str).unique().tolist())
+        estados_sel = f1.multiselect(
+            "Filtrar por estado", estados_disponibles, default=estados_disponibles
+        )
+        servicios_disponibles = sorted(
+            df_datos["tipo_servicio"].dropna().astype(str).unique().tolist()
+        )
+        servicios_sel = f2.multiselect(
+            "Filtrar por tipo de servicio",
+            servicios_disponibles,
+            default=servicios_disponibles,
+        )
+        fechas_validas = df_datos["fecha"].dropna()
+        if fechas_validas.empty:
+            fecha_min = date.today()
+            fecha_max = date.today()
+        else:
+            fecha_min = fechas_validas.min().date()
+            fecha_max = fechas_validas.max().date()
+        fecha_rango = f3.date_input(
+            "Rango de fechas",
+            value=(fecha_min, fecha_max),
+            min_value=fecha_min,
+            max_value=fecha_max,
+        )
 
     if isinstance(fecha_rango, tuple) and len(fecha_rango) == 2:
         fecha_inicio, fecha_fin = fecha_rango
@@ -172,7 +184,7 @@ def _mostrar_panel_bi(contenedor, usar_demo: bool) -> None:
 
     annotated_text(
         "Total ingresos: ",
-        (f"${total_ingresos:,.2f}", "SUM(monto_total)", CYBER_CYAN),
+        (f"${total_ingresos:,.2f}", "SUM(monto_total)", COLOR_ACCENT),
     )
 
     k1, k2, k3 = st.columns(3)

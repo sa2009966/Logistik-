@@ -6,7 +6,7 @@ import streamlit as st
 from mysql.connector import Error
 
 from services.container import ContenedorAplicacion, fabricar_contenedor
-from ui.styles import TemaInterfaz
+from ui.styles import apply_custom_theme
 
 
 def _inicializar_capa_datos(contenedor: ContenedorAplicacion) -> None:
@@ -29,7 +29,7 @@ def principal() -> None:
         layout="wide",
         initial_sidebar_state="expanded",
     )
-    TemaInterfaz().inyectar_estilos_globales()
+    apply_custom_theme()
 
     if "_contenedor" not in st.session_state:
         st.session_state["_contenedor"] = fabricar_contenedor()
