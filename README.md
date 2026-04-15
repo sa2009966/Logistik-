@@ -1,93 +1,86 @@
-# Logistik BI Dashboard
+# Logistik BI Dashboard 🚛📊
 
-### Gestión de datos logísticos y Business Intelligence
+## Gestión de datos logísticos con Arquitectura Enterprise (SOLID)
 
-Sistema de análisis logístico que convierte registros operativos en KPIs accionables. Stack en Python con **Streamlit**, **MySQL** (con fallback a **modo demo** en memoria), **Plotly** (tema oscuro) y **bcrypt** para contraseñas.
+Sistema de inteligencia de negocios de alto rendimiento que transforma registros operativos en KPIs estratégicos. Diseñado bajo el paradigma de Clean Architecture, el sistema garantiza escalabilidad, mantenibilidad y un desacoplamiento total entre la lógica de negocio y la infraestructura.
 
----
+## ✨ Características Principales
 
-## El proyecto
+- **Arquitectura Desacoplada:** Implementación estricta de POO y SOLID para un código limpio y profesional.
+- **Doble Persistencia:** Conexión nativa a MySQL con un robusto sistema de fallback a Modo Demo (InMemory) si la base de datos no está disponible.
+- **Auditoría de Grado Industrial:** Trazabilidad completa de acciones de usuario (Logins, Cargas de datos, Exportaciones) integrada mediante Inyección de Dependencias.
+- **Reporting Proactivo:** Generación de reportes en Excel y sistema de Alertas de KPIs dinámicas.
+- **UI Profesional:** Interfaz responsiva "Slate & Steel" con animaciones fluidas y optimización para móviles.
 
-- **Autenticación:** Sesión en Streamlit y contraseñas con **bcrypt** (`SecurityHandler` en `core/`).
-- **Datos:** Conexión a **MySQL**; si falla el arranque, **modo demo** con datos en `session_state`.
-- **BI:** KPIs, filtros y gráficos Plotly; opción de **CSV externo** para el tablero.
-- **Arquitectura:** Capas **core → database → services → ui**, con **POO**, **inyección de dependencias** y contratos **SOLID** en `services/`.
+## 🏗️ Arquitectura de Capas (SOLID Implementation)
 
----
-
-## Arquitectura de capas
-
-
-| Carpeta     | Responsabilidad                                                                                                                                                               |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `core/`     | Configuración (`ConfiguracionAplicacion`), constantes (`ConstantesNegocio`), sesión Streamlit (`AuthSessionController`), seguridad (`SecurityHandler`).                       |
-| `database/` | Infraestructura: `GestorConexionMySQL` y `LogistikRepository` (implementa los puertos definidos en `services/contracts.py`).                                                  |
-| `services/` | Casos de uso: `AuthService`, `LogisticaService`, `DashboardService`, `AnalyticsService` (KPIs), `CsvDataLoaderService` (CSV), `DemoDataStore`, composición en `container.py`. |
-| `ui/`       | Vistas Streamlit, tema (`TemaInterfaz`) y gráficos extensibles (`BaseGraficoPlotly` + `RenderizadorGraficosBi`).                                                              |
+El proyecto se rige por la Inversión de Dependencias (DIP), donde la UI y los servicios dependen de abstracciones, no de implementaciones.
 
 
-**Flujo de dependencias:** la UI consume el **contenedor** (`fabricar_contenedor`) y llama a **servicios**; los servicios dependen de **interfaces** (`IAuthRepository`, `IBootstrapRepository`, `ITransaccionesDataSource`), no de clases concretas de `database/`.
+| Capa        | Componentes Clave                                   | Responsabilidad (Single Responsibility)                                       |
+| ----------- | --------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `core/`     | `SecurityHandler`, `AuthSession`                    | Configuración global, seguridad (bcrypt) y gestión de estados de sesión.      |
+| `database/` | `LogistikRepository`, `AuditRepository`             | Implementación concreta de la persistencia (MySQL / InMemory).                |
+| `services/` | `AnalyticsService`, `AuditService`, `ExportService` | Casos de Uso: lógica de negocio, orquestación de auditoría y cálculo de KPIs. |
+| `ui/`       | `TemaInterfaz`, `RenderizadorGraficos`              | Presentación responsiva, visualización de datos y componentes de usuario.     |
 
-**Principios SOLID (resumen):**
 
-- **S:** CSV (`CsvDataLoaderService`) separado de KPIs (`AnalyticsService`).
-- **O:** Nuevos gráficos: subclase de `BaseGraficoPlotly` y registro en `RenderizadorGraficosBi`.
-- **L:** Fuentes de transacciones intercambiables vía `ITransaccionesDataSource` (MySQL / demo).
-- **I:** Puertos segregados en `services/contracts.py`.
-- **D:** Servicios inyectan abstracciones; la implementación MySQL vive en `database/`.
+### Cumplimiento de Principios SOLID
 
----
+- **S (Single Responsibility):** Cada clase tiene una única razón de cambio. Ej: `ExportService` solo gestiona formatos, no conoce la base de datos.
+- **O (Open/Closed):** Sistema de gráficos extensible mediante la clase base `BaseGraficoPlotly` sin modificar el núcleo.
+- **L (Liskov Substitution):** Los repositorios MySQL y Demo son totalmente intercambiables a través de interfaces (`contracts.py`).
+- **I (Interface Segregation):** Interfaces de repositorio específicas para evitar que los servicios dependan de métodos que no utilizan.
+- **D (Dependency Inversion):** Los servicios inyectan interfaces; `container.py` se encarga de fabricar los objetos necesarios.
 
-## Stack tecnológico
+## 🛠️ Stack Tecnológico
 
-- **Lenguaje:** Python 3.12+
-- **UI:** [Streamlit](https://streamlit.io/)
-- **Base de datos:** MySQL / MariaDB
-- **Seguridad:** bcrypt
-- **Gráficos:** Plotly (tema oscuro)
+- **Core:** Python 3.12+ (tipado fuerte y docstrings estilo Google).
+- **Frontend:** Streamlit (personalizado con CSS profesional).
+- **Data Engine:** MySQL / MariaDB y Pandas.
+- **Seguridad:** BCrypt para hashing de credenciales.
+- **Visualización:** Plotly (elegante dark theme).
 
----
+## 🚀 Instalación y Uso Rápido
 
-## Instalación y uso
+### Clonación y Entorno
 
-1. **Clonar el repositorio** (ajusta la URL si usas un fork distinto):
-  ```bash
-   git clone https://github.com/sa2009966/Logistik-.git
-   cd Logistik-
-  ```
-2. **Entorno virtual y dependencias:**
-  ```bash
-   python3 -m venv env_dashboard
-   source env_dashboard/bin/activate
-   pip install -r requirements.txt
-  ```
-3. **Variables de entorno (`.env` en la raíz del proyecto, junto a `app.py`):**
+```bash
+git clone https://github.com/sa2009966/Logistik-.git
+cd Logistik-
+python3 -m venv env_dashboard
+source env_dashboard/bin/activate
+pip install -r requirements.txt
+```
 
-  | Variable                                                  | Descripción                                            |
-  | --------------------------------------------------------- | ------------------------------------------------------ |
-  | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Conexión MySQL                                         |
-  | `DEFAULT_ADMIN_USERNAME`, `DEFAULT_ADMIN_PASSWORD`        | Usuario admin inicial si no existe                     |
-  | `ALLOW_SELF_REGISTRATION`                                 | `true` / `false` — registro desde la pantalla de login |
+### Configuración de Variables (`.env`)
 
-4. **Punto de entrada (sin cambios):** el arranque sigue siendo `**app.py`**.
-  ```bash
-   streamlit run app.py
-  ```
-   También puedes ejecutar `python app.py` si tu entorno invoca Streamlit correctamente; la forma recomendada es `streamlit run app.py`.
+Crea un archivo `.env` en la raíz con las credenciales de tu base de datos y configuración de administrador.
 
----
+Variables recomendadas:
 
-## Seguridad y buenas prácticas
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+- `DEFAULT_ADMIN_USERNAME`, `DEFAULT_ADMIN_PASSWORD`
+- `ALLOW_SELF_REGISTRATION`
 
-- Las contraseñas se almacenan hasheadas (no en texto plano).
-- El dashboard solo es accesible con sesión autenticada.
-- Credenciales y secretos deben ir en `.env` (no versionar secretos reales).
+### Ejecución
 
----
+```bash
+streamlit run app.py
+```
 
-## Vistas del sistema
+## 🔐 Seguridad y Auditoría
 
-1. **Landing:** Presentación y acceso al login.
-2. **Login:** Acceso y registro opcional (si `ALLOW_SELF_REGISTRATION` lo permite).
-3. **Dashboard BI:** Registro de transacciones, KPIs, filtros, CSV opcional y exportación.
+El sistema implementa un `AuditService` orquestado por POO que registra:
+
+- **Trazabilidad:** Quién, cuándo y qué acción se realizó.
+- **Alertas de KPIs:** El sistema identifica automáticamente desviaciones críticas en la eficiencia logística y lo notifica visualmente.
+- **Protección de Datos:** Cifrado de nivel industrial para toda la gestión de usuarios.
+
+## 🛣️ Roadmap de Desarrollo
+
+- Refactorización completa a SOLID y Clean Architecture.
+- Interfaz responsiva y Mobile-First.
+- Módulo de Auditoría y Exportación avanzada.
+- Fase futura: implementación de Docker y modelos de Machine Learning para predicción de demanda.
 
