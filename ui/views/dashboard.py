@@ -181,6 +181,11 @@ def _mostrar_panel_bi(contenedor, usar_demo: bool) -> None:
     total_ingresos, servicios_realizados, monto_promedio = contenedor.dashboard.calcular_indicadores(
         df_filtrado
     )
+    alertas = contenedor.dashboard.evaluar_alertas_kpi(
+        total_ingresos=total_ingresos,
+        servicios_realizados=servicios_realizados,
+        monto_promedio=monto_promedio,
+    )
 
     annotated_text(
         "Total ingresos: ",
@@ -191,6 +196,14 @@ def _mostrar_panel_bi(contenedor, usar_demo: bool) -> None:
     k1.metric("Total ingresos", f"${total_ingresos:,.2f}")
     k2.metric("Servicios realizados", f"{servicios_realizados}")
     k3.metric("Monto promedio", f"${monto_promedio:,.2f}")
+
+    for alerta in alertas:
+        if alerta.nivel == "error":
+            st.error(f"{alerta.titulo}: {alerta.mensaje}")
+        elif alerta.nivel == "warning":
+            st.warning(f"{alerta.titulo}: {alerta.mensaje}")
+        else:
+            st.success(f"{alerta.titulo}: {alerta.mensaje}")
 
     st.markdown("### Insights estadísticos")
     insights_stats = df_filtrado[["monto_total"]].describe().T
@@ -227,9 +240,36 @@ def _mostrar_panel_bi(contenedor, usar_demo: bool) -> None:
 
     st.markdown("### Centro de reportes")
     csv_bytes = df_filtrado.to_csv(index=False).encode("utf-8")
-    st.download_button(
+    c_csv, c_xlsx = st.columns(2)
+    c_csv.download_button(
         label="Descargar reporte CSV",
         data=csv_bytes,
         file_name="reporte_logistik.csv",
         mime="text/csv",
+        use_container_width=True,
     )
+    try:
+        payload_excel = contenedor.reportes.preparar_excel(
+            df_reporte=df_filtrado,
+            nombre_base="reporte_logistik",
+        )
+        descargado_excel = c_xlsx.download_button(
+            label="Descargar reporte Excel",
+            data=payload_excel.contenido,
+            file_name=payload_excel.nombre_archivo,
+            mime=payload_excel.mime_type,
+            use_container_width=True,
+        )
+        if descargado_excel:
+            contenedor.reportes.registrar_descarga_excel(
+                usar_demo=usar_demo,
+                usuario=contenedor.sesion.obtener_usuario_actual() or "system",
+                filas=len(df_filtrado),
+                nombre_archivo=payload_excel.nombre_archivo,
+            )
+    except ValueError as export_validation_error:
+        c_xlsx.info(str(export_validation_error))
+    except RuntimeError as export_runtime_error:
+        c_xlsx.warning(str(export_runtime_error))
+    except Exception as export_unknown_error:
+        c_xlsx.error(f"No se pudo preparar el reporte Excel: {export_unknown_error}")

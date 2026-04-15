@@ -3,23 +3,41 @@
 from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 import pandas as pd
+from services.models import KpiAlert
 
 if TYPE_CHECKING:
+    from services.alert_manager import AlertManager
     from services.analytics import AnalyticsService
+    from services.audit_service import AuditService
     from services.csv_loader import CsvDataLoaderService
     from services.logistica_service import LogisticaService
 
 
 class DashboardService:
+    """Coordina carga de datos, cálculo KPI y reglas de alertas."""
+
     def __init__(
         self,
         servicio_analitica: "AnalyticsService",
         servicio_csv: "CsvDataLoaderService",
         servicio_logistica: "LogisticaService",
+        alert_manager: "AlertManager",
+        audit_service: "AuditService",
     ) -> None:
+        """Inicializa dependencias del dashboard.
+
+        Args:
+            servicio_analitica: Servicio de KPIs.
+            servicio_csv: Servicio de carga/normalización CSV.
+            servicio_logistica: Servicio de lectura de transacciones.
+            alert_manager: Motor de alertas de negocio.
+            audit_service: Servicio de auditoría.
+        """
         self._analytics = servicio_analitica
         self._csv = servicio_csv
         self._logistica = servicio_logistica
+        self._alerts = alert_manager
+        self._audit = audit_service
 
     def construir_dataset_visualizacion(
         self,
@@ -34,6 +52,13 @@ class DashboardService:
             try:
                 df_csv = self._csv.cargar_csv(archivo_csv)
             except Exception as e:
+                self._audit.registrar_evento(
+                    usar_demo=usar_demo,
+                    accion="CSV_ERROR",
+                    detalle="No se pudo procesar CSV externo.",
+                    usuario="dashboard",
+                    severidad="WARN",
+                )
                 return None, "", f"No se pudo procesar el CSV: {e}"
             faltantes = self._csv.validar_columnas_csv(df_csv)
             if faltantes:
@@ -46,6 +71,12 @@ class DashboardService:
                     "Columnas mínimas: monto_total, estado, tipo_servicio.",
                 )
             df = self._csv.preparar_dataframe_csv(df_csv)
+            self._audit.registrar_evento(
+                usar_demo=usar_demo,
+                accion="CSV_OK",
+                detalle="CSV externo cargado correctamente.",
+                usuario="dashboard",
+            )
             return df, "CSV EXTERNO", None
 
         if usar_demo:
@@ -55,7 +86,28 @@ class DashboardService:
             df = self._logistica.cargar_transacciones_operativas(False)
             return df, "MYSQL ONLINE", None
         except Exception as e:
+            self._audit.registrar_evento(
+                usar_demo=False,
+                accion="DATA_READ_ERROR",
+                detalle="Error al leer transacciones desde MySQL.",
+                usuario="dashboard",
+                severidad="ERROR",
+            )
             return None, "", f"Error al leer transacciones de MySQL: {e}"
 
-    def calcular_indicadores(self, df_filtrado: pd.DataFrame):
+    def calcular_indicadores(self, df_filtrado: pd.DataFrame) -> tuple[float, int, float]:
+        """Calcula total, volumen y ticket promedio."""
         return self._analytics.calcular_indicadores(df_filtrado)
+
+    def evaluar_alertas_kpi(
+        self,
+        total_ingresos: float,
+        servicios_realizados: int,
+        monto_promedio: float,
+    ) -> list[KpiAlert]:
+        """Evalúa alertas de salud para KPIs agregados."""
+        return self._alerts.evaluar_kpis(
+            total_ingresos=total_ingresos,
+            servicios_realizados=servicios_realizados,
+            monto_promedio=monto_promedio,
+        )

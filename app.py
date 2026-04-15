@@ -16,10 +16,12 @@ def _inicializar_capa_datos(contenedor: ContenedorAplicacion) -> None:
     try:
         contenedor.bootstrap_repo.inicializar_esquema_base_datos()
         contenedor.bootstrap_repo.asegurar_usuario_admin_por_defecto()
+        contenedor.audit.inicializar_almacen(usar_demo=False)
         st.session_state.use_demo_mode = False
     except Error:
         st.session_state.use_demo_mode = True
         contenedor.demo.inicializar_demostracion_si_ausente()
+        contenedor.audit.inicializar_almacen(usar_demo=True)
 
 
 def principal() -> None:
