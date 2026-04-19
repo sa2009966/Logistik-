@@ -23,5 +23,7 @@ class ConstantesNegocio:
 
     CSV_REQUIRED_COLUMNS = ["monto_total", "estado", "tipo_servicio"]
 
+    ROLES = ["admin", "analista", "operador"]
+
     DB_TABLE_TRANSACTIONS = "transacciones_logistik"
     DB_TABLE_USERS = "usuarios"

@@ -1,8 +1,13 @@
-"""Modelos de aplicación para auditoría, alertas y exportación."""
+"""Modelos de aplicación para auditoría, alertas, exportación, admin y BI."""
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Mapping
+from datetime import date, datetime, timezone
+from typing import TYPE_CHECKING, List, Mapping
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 @dataclass(slots=True)
@@ -34,3 +39,46 @@ class ReportPayload:
     nombre_archivo: str
     mime_type: str
     contenido: bytes
+
+
+@dataclass(slots=True)
+class UsuarioInfo:
+    """Proyección de usuario para la capa de administración."""
+
+    id_usuario: int
+    nombre_usuario: str
+    rol: str
+    creado_en: str
+
+
+@dataclass(slots=True)
+class MapeoColumnas:
+    """Asignación de columnas del CSV del usuario a las columnas requeridas por el sistema.
+
+    Cada campo contiene el nombre de la columna tal como aparece en el CSV original.
+    Un valor vacío significa que la columna requerida ya existe con ese mismo nombre.
+    """
+
+    monto_total: str
+    estado: str
+    tipo_servicio: str
+
+
+@dataclass(slots=True)
+class FiltrosBi:
+    """Criterios de filtrado para consultas BI dinámicas."""
+
+    fecha_inicio: date
+    fecha_fin: date
+    estados: List[str]
+    tipos_servicio: List[str]
+
+
+@dataclass
+class BiSnapshot:
+    """Resultado de una consulta BI filtrada."""
+
+    df_filtrado: "pd.DataFrame"
+    total_ingresos: float
+    servicios_realizados: int
+    monto_promedio: float

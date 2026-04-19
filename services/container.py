@@ -8,23 +8,30 @@ from core.auth import AuthSessionController
 from core.config import ConfiguracionAplicacion
 from core.security import SecurityHandler
 from database.audit_repository import MysqlAuditRepository
+from database.bi_repository import MysqlBiDinamicoRepository
 from database.connection import GestorConexionMySQL
 from database.repository import LogistikRepository
+from services.admin_service import AdminService
 from services.alert_manager import AlertManager
 from services.analytics import AnalyticsService
 from services.audit_service import AuditService
 from services.auth_service import AuthService
+from services.bi_dinamico_service import BiDinamicoService
 from services.contracts import (
     IAuditRepository,
     IAuthRepository,
+    IBiDinamicoRepository,
     IBootstrapRepository,
     ITransaccionesDataSource,
+    IUsuarioAdminRepository,
 )
 from services.csv_loader import CsvDataLoaderService
 from services.dashboard_service import DashboardService
 from services.data_sources import DemoTransaccionesDataSource, MysqlTransaccionesDataSource
+from services.demo_bi_repository import DemoBiDinamicoRepository
 from services.demo_data import DemoDataStore
 from services.in_memory_audit_repository import InMemoryAuditRepository
+from services.in_memory_usuario_admin_repository import InMemoryUsuarioAdminRepository
 from services.logistica_service import LogisticaService
 from services.report_exporters import ExcelReportExporter
 from services.report_service import ReportService
@@ -57,6 +64,8 @@ class ContenedorAplicacion:
     dashboard: DashboardService
     reportes: ReportService
     graficos: RenderizadorGraficosBi
+    admin: AdminService
+    bi_dinamico: BiDinamicoService
 
 
 def fabricar_contenedor() -> ContenedorAplicacion:
@@ -88,6 +97,21 @@ def fabricar_contenedor() -> ContenedorAplicacion:
             GraficoPastelParticipacionEstado(),
         ]
     )
+    # --- Admin CRUD ---
+    repo_admin_mysql: IUsuarioAdminRepository = repositorio_concreto
+    repo_admin_demo: IUsuarioAdminRepository = InMemoryUsuarioAdminRepository()
+    admin = AdminService(
+        {False: repo_admin_mysql, True: repo_admin_demo},
+        audit_service,
+    )
+    # --- BI Dinámico ---
+    repo_bi_mysql: IBiDinamicoRepository = MysqlBiDinamicoRepository(gestor_mysql)
+    repo_bi_demo: IBiDinamicoRepository = DemoBiDinamicoRepository(demo_store)
+    bi_dinamico = BiDinamicoService(
+        {False: repo_bi_mysql, True: repo_bi_demo},
+        analytics,
+        audit_service,
+    )
     return ContenedorAplicacion(
         configuracion=configuracion,
         bootstrap_repo=repo_bootstrap,
@@ -106,6 +130,8 @@ def fabricar_contenedor() -> ContenedorAplicacion:
         dashboard=dashboard,
         reportes=reportes,
         graficos=graficos,
+        admin=admin,
+        bi_dinamico=bi_dinamico,
     )
 
 

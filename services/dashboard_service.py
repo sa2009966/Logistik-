@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from services.audit_service import AuditService
     from services.csv_loader import CsvDataLoaderService
     from services.logistica_service import LogisticaService
+    from services.models import MapeoColumnas
 
 
 class DashboardService:
@@ -94,6 +95,43 @@ class DashboardService:
                 severidad="ERROR",
             )
             return None, "", f"Error al leer transacciones de MySQL: {e}"
+
+    def aplicar_mapeo_y_preparar(
+        self,
+        df_raw: pd.DataFrame,
+        mapeo: "MapeoColumnas",
+        usar_demo: bool,
+    ) -> Tuple[Optional[pd.DataFrame], str, Optional[str]]:
+        """Aplica un mapeo de columnas, re-valida y prepara el DataFrame CSV.
+
+        Extensión OCP: no modifica ``construir_dataset_visualizacion``.
+        Se usa cuando el CSV original no tiene las columnas canónicas y el usuario
+        define el mapeo desde la UI.
+
+        Args:
+            df_raw: DataFrame crudo tal como salió de ``cargar_csv``.
+            mapeo: Asignación columna_usuario → columna_sistema.
+            usar_demo: Modo activo (solo para auditoría).
+
+        Returns:
+            Tupla ``(dataframe, etiqueta_fuente, mensaje_error)``.
+        """
+        df_mapeado = self._csv.aplicar_mapeo_columnas(df_raw, mapeo)
+        faltantes = self._csv.validar_columnas_csv(df_mapeado)
+        if faltantes:
+            return (
+                None,
+                "",
+                f"Tras el mapeo aún faltan columnas requeridas: {', '.join(faltantes)}.",
+            )
+        df_preparado = self._csv.preparar_dataframe_csv(df_mapeado)
+        self._audit.registrar_evento(
+            usar_demo=usar_demo,
+            accion="CSV_MAPEADO_OK",
+            detalle="CSV externo cargado tras mapeo manual de columnas.",
+            usuario="dashboard",
+        )
+        return df_preparado, "CSV EXTERNO (MAPEADO)", None
 
     def calcular_indicadores(self, df_filtrado: pd.DataFrame) -> tuple[float, int, float]:
         """Calcula total, volumen y ticket promedio."""

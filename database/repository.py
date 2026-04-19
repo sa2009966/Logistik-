@@ -2,14 +2,20 @@
 
 import logging
 from datetime import date
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import mysql.connector
 import pandas as pd
 from mysql.connector import Error
 
 from core.constants import ConstantesNegocio
-from services.contracts import IAuthRepository, IBootstrapRepository, ITransaccionesDataSource
+from services.contracts import (
+    IAuthRepository,
+    IBootstrapRepository,
+    ITransaccionesDataSource,
+    IUsuarioAdminRepository,
+)
+from services.models import UsuarioInfo
 
 if TYPE_CHECKING:
     from core.config import ConfiguracionAplicacion
@@ -19,7 +25,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class LogistikRepository(IAuthRepository, IBootstrapRepository, ITransaccionesDataSource):
+class LogistikRepository(
+    IAuthRepository, IBootstrapRepository, ITransaccionesDataSource, IUsuarioAdminRepository
+):
     """
     Repositorio SQL: recibe el gestor de conexión y el manejador de seguridad por constructor.
     No instancia dependencias internamente.
@@ -81,10 +89,12 @@ class LogistikRepository(IAuthRepository, IBootstrapRepository, ITransaccionesDa
                     id_usuario INT AUTO_INCREMENT PRIMARY KEY,
                     nombre_usuario VARCHAR(64) NOT NULL UNIQUE,
                     password_hash VARCHAR(255) NOT NULL,
+                    rol VARCHAR(20) NOT NULL DEFAULT 'usuario',
                     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """
             )
+            self._migrar_columna_rol(cursor, tbl_users)
         finally:
             if cursor is not None:
                 cursor.close()
@@ -219,3 +229,81 @@ class LogistikRepository(IAuthRepository, IBootstrapRepository, ITransaccionesDa
             ORDER BY fecha ASC, id_transaccion ASC
         """
         return pd.read_sql(consulta, conn)
+
+    # ------------------------------------------------------------------
+    # IUsuarioAdminRepository
+    # ------------------------------------------------------------------
+
+    def _migrar_columna_rol(self, cursor, tbl_users: str) -> None:
+        """Añade la columna `rol` si la tabla ya existía sin ella (migración segura)."""
+        try:
+            cursor.execute(
+                f"SELECT COUNT(*) FROM information_schema.columns "
+                f"WHERE table_schema = DATABASE() "
+                f"AND table_name = '{tbl_users}' "
+                f"AND column_name = 'rol'"
+            )
+            (existe,) = cursor.fetchone()
+            if not existe:
+                cursor.execute(
+                    f"ALTER TABLE {tbl_users} "
+                    f"ADD COLUMN rol VARCHAR(20) NOT NULL DEFAULT 'usuario'"
+                )
+                logger.info("Columna 'rol' añadida a la tabla '%s'.", tbl_users)
+        except Error as e:
+            logger.warning("No se pudo migrar columna 'rol': %s", e)
+
+    def listar_usuarios(self) -> List[UsuarioInfo]:
+        conn = self._gestor.obtener()
+        cursor = conn.cursor()
+        tbl_users = ConstantesNegocio.DB_TABLE_USERS
+        try:
+            cursor.execute(
+                f"SELECT id_usuario, nombre_usuario, rol, creado_en FROM {tbl_users} ORDER BY id_usuario"
+            )
+            filas = cursor.fetchall()
+            return [
+                UsuarioInfo(
+                    id_usuario=int(fila[0]),
+                    nombre_usuario=str(fila[1]),
+                    rol=str(fila[2]),
+                    creado_en=str(fila[3]),
+                )
+                for fila in filas
+            ]
+        finally:
+            cursor.close()
+
+    def actualizar_rol(self, id_usuario: int, nuevo_rol: str) -> bool:
+        conn = self._gestor.obtener()
+        cursor = conn.cursor()
+        tbl_users = ConstantesNegocio.DB_TABLE_USERS
+        try:
+            cursor.execute(
+                f"UPDATE {tbl_users} SET rol = %s WHERE id_usuario = %s",
+                (nuevo_rol, id_usuario),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        except Error:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+
+    def eliminar_usuario(self, id_usuario: int) -> bool:
+        conn = self._gestor.obtener()
+        cursor = conn.cursor()
+        tbl_users = ConstantesNegocio.DB_TABLE_USERS
+        try:
+            cursor.execute(
+                f"DELETE FROM {tbl_users} WHERE id_usuario = %s",
+                (id_usuario,),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        except Error:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()

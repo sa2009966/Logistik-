@@ -2,11 +2,11 @@
 
 from abc import ABC, abstractmethod
 from datetime import date
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import pandas as pd
 
-from services.models import AuditEvent, ReportPayload
+from services.models import AuditEvent, FiltrosBi, ReportPayload, UsuarioInfo
 
 
 class IAuthRepository(ABC):
@@ -140,6 +140,68 @@ class IAuditRepository(ABC):
 
         Returns:
             Lista ordenada del más reciente al más antiguo.
+
+        Raises:
+            Exception: Error de infraestructura/persistencia.
+        """
+
+
+class IUsuarioAdminRepository(ABC):
+    """Puerto para gestión CRUD de usuarios y asignación de roles."""
+
+    @abstractmethod
+    def listar_usuarios(self) -> List[UsuarioInfo]:
+        """Lista todos los usuarios del sistema.
+
+        Returns:
+            Lista de proyecciones ``UsuarioInfo`` ordenada por id.
+
+        Raises:
+            Exception: Error de infraestructura/persistencia.
+        """
+
+    @abstractmethod
+    def actualizar_rol(self, id_usuario: int, nuevo_rol: str) -> bool:
+        """Actualiza el rol de un usuario.
+
+        Args:
+            id_usuario: Identificador del usuario a modificar.
+            nuevo_rol: Nombre del rol destino.
+
+        Returns:
+            ``True`` si la actualización fue exitosa; ``False`` si el usuario no existe.
+
+        Raises:
+            Exception: Error de infraestructura/persistencia.
+        """
+
+    @abstractmethod
+    def eliminar_usuario(self, id_usuario: int) -> bool:
+        """Elimina un usuario del sistema.
+
+        Args:
+            id_usuario: Identificador del usuario a eliminar.
+
+        Returns:
+            ``True`` si se eliminó; ``False`` si no existía.
+
+        Raises:
+            Exception: Error de infraestructura/persistencia.
+        """
+
+
+class IBiDinamicoRepository(ABC):
+    """Puerto para consultas BI con filtros aplicados en la capa de datos."""
+
+    @abstractmethod
+    def cargar_transacciones_filtradas(self, filtros: FiltrosBi) -> pd.DataFrame:
+        """Devuelve transacciones que cumplen los criterios del filtro.
+
+        Args:
+            filtros: Objeto de dominio con rango de fechas, estados y tipos de servicio.
+
+        Returns:
+            DataFrame con las transacciones que coinciden.
 
         Raises:
             Exception: Error de infraestructura/persistencia.
