@@ -1,0 +1,9 @@
+fecha,monto_total,estado,tipo_servicio
+2026-04-01,150.5,Completado,Envío Nacional
+2026-04-01,2500.0,Pendiente,Envío Internacional
+2026-04-02,75.0,Cancelado,Logística Inversa
+2026-04-03,300.0,Completado,Envío Nacional
+2026-04-04,1200.0,Completado,Envío Internacional
+2026-04-05,50.25,Completado,Logística Inversa
+2026-04-06,850.0,Pendiente,Envío Nacional
+2026-04-07,450.0,Completado,Envío Internacional
