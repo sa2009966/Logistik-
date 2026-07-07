@@ -1,5 +1,7 @@
 # Logistik BI Dashboard 🚛📊
 
+## EJemplooooooooooooooooooooooooooo
+
 ## Gestión de datos logísticos con Arquitectura Enterprise (SOLID)
 
 Sistema de inteligencia de negocios de alto rendimiento que transforma registros operativos en KPIs estratégicos. Diseñado bajo el paradigma de Clean Architecture, el sistema garantiza escalabilidad, mantenibilidad y un desacoplamiento total entre la lógica de negocio y la infraestructura.
